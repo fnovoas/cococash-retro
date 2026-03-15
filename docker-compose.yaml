@@ -1,0 +1,44 @@
+services:
+  core:
+    build: ./cr-core
+    container_name: cr-core
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./cr-core:/app
+    networks:
+      - cr-net
+
+  api-gateway:
+    build: ./cr-ag
+    container_name: cr-ag
+    depends_on:
+      - core
+    ports:
+      - "3001:3001"
+    environment:
+      # Ruta donde el API Gateway encuentra los binarios COBOL
+      - COCOCASH_CORE_PATH=/app/cr-core
+    volumes:
+      # Compartir el core con el gateway para ejecutar binarios
+      - ./cr-core:/app/cr-core
+    networks:
+      - cr-net
+
+  frontend:
+    build: ./cr-frontend
+    container_name: cr-frontend
+    depends_on:
+      - api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      # URL interna dentro de la red Docker
+      - NEXT_PUBLIC_API_BASEURL=http://api-gateway:3001
+    networks:
+      - cr-net
+
+networks:
+  cr-net:
+    driver: bridge
+    
