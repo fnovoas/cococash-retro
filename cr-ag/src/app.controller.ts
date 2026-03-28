@@ -19,7 +19,7 @@ export class AppController {
   }
 
   @Get('cobol')
-  getPrograms(): string[] {
+  async getPrograms(): Promise<string[]> {
     return this.appService.getPrograms();
   }
 

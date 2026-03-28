@@ -10,7 +10,7 @@ export class AppService {
     return this.cobolService.run(program);
   }
 
-  getPrograms(): string[] {
+  async getPrograms(): Promise<string[]>{
     return this.cobolService.getPrograms();
   }
 }

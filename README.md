@@ -9,13 +9,15 @@ CocoCash Retro es un sistema de software que simula una billetera digital inspir
 * **Ubuntu**: Entorno principal de desarrollo y ejecución del sistema.
 * **Docker**: Contenerización de los servicios del sistema.
 * **Docker Compose**: Orquestación de los microservicios (frontend, API Gateway y core).
-* **COBOL (GnuCOBOL)**: Implementación del core transaccional; programas compilados y ejecutados como binarios.
-* **Node.js 22 (nvm)**: Runtime para el frontend (Next.js) y el API Gateway (NestJS).
+* **GnuCOBOL**: Implementación del core transaccional; programas organizados en `src/cobol/`, compilados con `make` y ejecutados como binarios dentro del microservicio core.
+* **libcob5**: Runtime necesario para la ejecución de binarios COBOL generados con GnuCOBOL.
+* **Node.js 22**: Runtime utilizado en todos los servicios Node.js (frontend, API Gateway y servidor HTTP del core).
 * **Next.js 16**: Frontend web del sistema, ejecutado en `localhost:3000`, consume REST del API Gateway.
-* **NestJS**: API Gateway en `localhost:3001`; expone endpoints REST y ejecuta el core COBOL mediante `execFile()`.
+* **NestJS**: API Gateway en `localhost:3001`; expone endpoints REST y orquesta la comunicación con el core mediante HTTP.
+* **HTTP (REST interno)**: Mecanismo de comunicación entre API Gateway y core (`http://core:3002`).
 * **TypeScript**: Lenguaje base del frontend y del API Gateway.
 * **npm**: Gestor de dependencias para los servicios Node.js.
-* **child_process.spawn (Node.js)**: Mecanismo actual de comunicación entre API Gateway y el core COBOL (ejecución de binarios con manejo de stdout/stderr en streaming).
+* **child_process.spawn (Node.js)**: Utilizado exclusivamente dentro del microservicio core para ejecutar los binarios COBOL.
 
 ## Cómo ejecutar
 1. Levantar todo el entorno (build + ejecución de contenedores):
@@ -38,11 +40,13 @@ http://localhost:3000
 
 
 ## Cómo se logró
-Para lograr que el **frontend mostrara el mensaje generado por el core en COBOL**, implementamos una arquitectura de tres capas completamente dockerizada y orquestada con **Docker Compose**. En el contenedor `cr-core`, configuramos la compilación automática de programas COBOL (`hola.cobol`) mediante **GnuCOBOL**, generando binarios ejecutables dentro del directorio `/app/bin` durante el build (usando `make`). Este directorio se comparte con el resto de servicios mediante volúmenes, permitiendo que los binarios estén disponibles en tiempo de ejecución.
+Para lograr que el **frontend mostrara el mensaje generado por el core en COBOL**, usamos una arquitectura de microservicios desacoplada, dockerizada y orquestada con **Docker Compose**.
 
-En el **API Gateway (NestJS)** desarrollamos un servicio (`CobolService`) encargado de detectar dinámicamente los binarios disponibles, monitorear cambios en el directorio `bin/` y ejecutar los programas COBOL mediante `spawn`. Se añadieron **logs estructurados con `Logger` de NestJS**, lo que permitió diagnosticar errores de forma precisa durante el desarrollo.
+En el contenedor `cr-core`, organizamos los programas COBOL dentro de `src/cobol/` y configuramos su compilación automática mediante **GnuCOBOL** y `make`, generando binarios en `/app/bin`. Además, incorporamos un servidor HTTP ligero en Node.js que expone endpoints como `/run/:program` y `/programs`. Este servidor es responsable de ejecutar los programas COBOL mediante `spawn`, capturar su salida (stdout/stderr) y devolverla como respuesta HTTP. También se resolvieron dependencias de runtime instalando `libcob5`, necesario para ejecutar los binarios. Entonces dentro del core: HTTP request → spawn → binario COBOL → stdout → HTTP response.
 
-En el **frontend (Next.js)** se implementó la llamada al API Gateway utilizando la variable de entorno `NEXT_PUBLIC_API_BASEURL`, apuntando a `http://api-gateway:3001` dentro de la red interna de Docker. De este modo, el frontend puede consumir el endpoint del backend sin depender de configuraciones externas. Cuando la API responde correctamente, el mensaje generado por el programa COBOL se muestra en la interfaz.
+En el **API Gateway (NestJS)** se hacen llamadas HTTP hacia el core. El servicio `CobolService` actúa como cliente del microservicio core, delegando completamente la ejecución de programas. No se usan volúmenes compartidos para ejecutar binarios.
+
+En el **frontend (Next.js)** se mantiene la llamada al API Gateway utilizando la variable de entorno `NEXT_PUBLIC_API_BASEURL`, apuntando a `http://api-gateway:3001` dentro de la red interna de Docker. El flujo completo queda así: el frontend solicita al API Gateway, este orquesta la petición hacia el core, y el core ejecuta el programa COBOL devolviendo el resultado.
 
 ## Vista C&C
 ![Diagrama del sistema](./assets/cr-CC.png)

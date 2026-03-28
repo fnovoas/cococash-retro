@@ -24,10 +24,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - COCOCASH_CORE_PATH=/app/cr-core
-      - COBOL_TIMEOUT_MS=3000
-    volumes:
-      - ./cr-core:/app/cr-core
+      - CORE_URL=http://core:3002
     networks:
       - cr-net
     healthcheck:
