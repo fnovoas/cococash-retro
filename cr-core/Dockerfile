@@ -14,11 +14,11 @@ WORKDIR /app
 # Copiar todo el core al contenedor
 COPY . /app
 
-# Compilar todos los .cob/.cobol si existe Makefile
-RUN make
-
 # Crear carpeta para binarios si no existe
 RUN mkdir -p /app/bin
+
+# Compilar todos los .cob/.cobol si existe Makefile
+RUN make
 
 # Exponer binarios al resto de contenedores por volumen
 VOLUME ["/app"]

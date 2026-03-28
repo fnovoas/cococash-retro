@@ -8,35 +8,53 @@ services:
       - ./cr-core:/app
     networks:
       - cr-net
+    healthcheck:
+      test: ["CMD", "test", "-d", "/app"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   api-gateway:
     build: ./cr-ag
     container_name: cr-ag
     depends_on:
-      - core
+      core:
+        condition: service_healthy
     ports:
       - "3001:3001"
     environment:
-      # Ruta donde el API Gateway encuentra los binarios COBOL
       - COCOCASH_CORE_PATH=/app/cr-core
+      - COBOL_TIMEOUT_MS=3000
     volumes:
-      # Compartir el core con el gateway para ejecutar binarios
       - ./cr-core:/app/cr-core
     networks:
       - cr-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   frontend:
     build: ./cr-frontend
     container_name: cr-frontend
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
-      # URL interna dentro de la red Docker
       - NEXT_PUBLIC_API_BASEURL=http://api-gateway:3001
     networks:
       - cr-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 networks:
   cr-net:

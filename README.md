@@ -37,7 +37,11 @@ http://localhost:3000
 ```
 
 ## Cómo se logró
-Para lograr que el **frontend mostrara el mensaje generado por el core en COBOL**, configuramos una arquitectura de tres capas coordinadas con **Docker Compose**. Primero compilamos el programa `hola.cobol` con **GnuCOBOL** dentro del contenedor `cr-core`, generando un binario ejecutable. Luego implementamos en el **API Gateway (NestJS)** un endpoint `GET /` que ejecuta ese binario mediante `execFile()` y devuelve su salida estándar como respuesta HTTP; para que esto funcionara correctamente instalamos también el **runtime de GnuCOBOL** en el contenedor del gateway, ya que el ejecutable depende de la librería `libcob`. Finalmente, en el **frontend (Next.js)** realizamos una petición al API Gateway usando la variable de entorno `NEXT_PUBLIC_API_BASEURL` apuntando a `http://api-gateway:3001`, lo que permite la comunicación entre contenedores dentro de la red de Docker. El flujo es **Next.js → NestJS → binario COBOL**; el mensaje producido por el programa COBOL se recupera vía API y se muestra en la interfaz web.
+Para lograr que el **frontend mostrara el mensaje generado por el core en COBOL**, implementamos una arquitectura de tres capas completamente dockerizada y orquestada con **Docker Compose**. En el contenedor `cr-core`, configuramos la compilación automática de programas COBOL (`hola.cobol`) mediante **GnuCOBOL**, generando binarios ejecutables dentro del directorio `/app/bin` durante el build (usando `make`). Este directorio se comparte con el resto de servicios mediante volúmenes, permitiendo que los binarios estén disponibles en tiempo de ejecución.
+
+En el **API Gateway (NestJS)** desarrollamos un servicio (`CobolService`) encargado de detectar dinámicamente los binarios disponibles, monitorear cambios en el directorio `bin/` y ejecutar los programas COBOL mediante `spawn`. Se añadieron **logs estructurados con `Logger` de NestJS**, lo que permitió diagnosticar errores de forma precisa durante el desarrollo.
+
+En el **frontend (Next.js)** se implementó la llamada al API Gateway utilizando la variable de entorno `NEXT_PUBLIC_API_BASEURL`, apuntando a `http://api-gateway:3001` dentro de la red interna de Docker. De este modo, el frontend puede consumir el endpoint del backend sin depender de configuraciones externas. Cuando la API responde correctamente, el mensaje generado por el programa COBOL se muestra en la interfaz.
 
 ## Vista C&C
 ![Diagrama del sistema](./assets/cr-CC.png)
@@ -45,4 +49,5 @@ Para lograr que el **frontend mostrara el mensaje generado por el core en COBOL*
 ## Proyectos relacionados
 * **CocoCash**: Plataforma de gestión financiera nativa de la nube.
 Repositorio disponible en: https://github.com/cococash-swarchqua/cococash/
+
 

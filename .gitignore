@@ -1,10 +1,15 @@
+cr-core/bin/
+
 # Node
 node_modules
 npm-debug.log
-package-lock.json
+
 
 # NestJS
 dist
+.next
+out
+build
 
 # Next.js
 .next
@@ -22,3 +27,7 @@ logs
 .env.local
 .env.development
 .env.production
+.env.*
+!.env.example
+docker-compose.override.yml
+coverage

@@ -1,19 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { execFile } from 'child_process';
+import { CobolService } from './cobol.service';
 
 @Injectable()
 export class AppService {
-  getHola(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      execFile(
-        "/app/cr-core/hola",
-        (error, stdout) => {
-          if (error) {
-            reject(error);
-          }
-          resolve(stdout);
-        }
-      );
-    });
+
+  constructor(private readonly cobolService: CobolService) {}
+
+  runCobol(program: string): Promise<string> {
+    return this.cobolService.run(program);
+  }
+
+  getPrograms(): string[] {
+    return this.cobolService.getPrograms();
   }
 }
