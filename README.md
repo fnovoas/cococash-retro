@@ -10,31 +10,32 @@ CocoCash Retro es un sistema de software que simula una billetera digital inspir
 * **Docker**: Contenerización de los servicios del sistema.
 * **Docker Compose**: Orquestación de los microservicios (frontend, API Gateway y core).
 * **COBOL (GnuCOBOL)**: Implementación del core transaccional; programas compilados y ejecutados como binarios.
-* **Node.js 20 (nvm)**: Runtime para el frontend (Next.js) y el API Gateway (NestJS).
+* **Node.js 22 (nvm)**: Runtime para el frontend (Next.js) y el API Gateway (NestJS).
 * **Next.js 16**: Frontend web del sistema, ejecutado en `localhost:3000`, consume REST del API Gateway.
 * **NestJS**: API Gateway en `localhost:3001`; expone endpoints REST y ejecuta el core COBOL mediante `execFile()`.
 * **TypeScript**: Lenguaje base del frontend y del API Gateway.
 * **npm**: Gestor de dependencias para los servicios Node.js.
-* **execFile (Node.js)**: Mecanismo actual de comunicación entre API Gateway y el core COBOL (invocación de binarios).
+* **child_process.spawn (Node.js)**: Mecanismo actual de comunicación entre API Gateway y el core COBOL (ejecución de binarios con manejo de stdout/stderr en streaming).
 
 ## Cómo ejecutar
-1. Construir las imágenes del proyecto:
+1. Levantar todo el entorno (build + ejecución de contenedores):
 
 ```
-docker compose build
+make
 ```
 
-2. Levantar los servicios:
+2. Ver logs en tiempo real (opcional pero recomendado la primera vez):
 
 ```
-docker compose up
+make logs
 ```
 
-3. Abrir el navegador y acceder al frontend en:
+3. Abrir el navegador y acceder al frontend:
 
 ```
 http://localhost:3000
 ```
+
 
 ## Cómo se logró
 Para lograr que el **frontend mostrara el mensaje generado por el core en COBOL**, implementamos una arquitectura de tres capas completamente dockerizada y orquestada con **Docker Compose**. En el contenedor `cr-core`, configuramos la compilación automática de programas COBOL (`hola.cobol`) mediante **GnuCOBOL**, generando binarios ejecutables dentro del directorio `/app/bin` durante el build (usando `make`). Este directorio se comparte con el resto de servicios mediante volúmenes, permitiendo que los binarios estén disponibles en tiempo de ejecución.
