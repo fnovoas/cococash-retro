@@ -18,4 +18,4 @@ RUN make
 
 EXPOSE 3002
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "make && node server.js"]

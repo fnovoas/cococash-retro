@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 3002;
+const HOST = '0.0.0.0';
 const BIN_PATH = path.join(__dirname, 'bin');
 
 function getPrograms() {
@@ -13,7 +14,8 @@ function getPrograms() {
   });
 }
 
-function runProgram(program, res) {
+function runProgram(req, program, res) {
+  // Validación básica de nombre
   if (!/^[a-zA-Z0-9_-]+$/.test(program)) {
     res.writeHead(400);
     return res.end('Invalid program name');
@@ -21,6 +23,7 @@ function runProgram(program, res) {
 
   const fullPath = path.join(BIN_PATH, program);
 
+  // Verificar que el binario exista
   if (!fs.existsSync(fullPath)) {
     res.writeHead(404);
     return res.end('Program not found');
@@ -28,7 +31,12 @@ function runProgram(program, res) {
 
   console.log(`Ejecutando COBOL: ${fullPath}`);
 
-  const child = spawn(fullPath);
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const msg = url.searchParams.get('msg') || '';
+
+  console.log("Query param msg:", msg);
+
+  const child = spawn(fullPath, msg ? [msg] : []);
 
   let output = '';
   let errorOutput = '';
@@ -46,8 +54,9 @@ function runProgram(program, res) {
   });
 
   child.on('close', code => {
+    console.log(`Proceso finalizado con código ${code}`);
+
     if (code !== 0) {
-      console.error(`Programa terminó con código ${code}`);
       res.writeHead(500);
       return res.end(`Execution error (code ${code}): ${errorOutput}`);
     }
@@ -64,6 +73,8 @@ function runProgram(program, res) {
 }
 
 const server = http.createServer((req, res) => {
+  console.log("REQUEST URL RAW:", req.url);
+
   if (req.url === '/health') {
     res.writeHead(200);
     return res.end('ok');
@@ -75,14 +86,20 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.url.startsWith('/run/')) {
-    const program = req.url.split('/')[2];
-    return runProgram(program, res);
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const program = url.pathname.split('/')[2];
+
+    console.log("URL:", req.url);
+    console.log("Pathname:", url.pathname);
+    console.log("Program:", program);
+
+    return runProgram(req, program, res);
   }
 
   res.writeHead(404);
   res.end('Not found');
 });
 
-server.listen(PORT, () => {
-  console.log(`COBOL core running on port ${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`COBOL core running on http://${HOST}:${PORT}`);
 });

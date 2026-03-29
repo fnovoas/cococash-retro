@@ -7,12 +7,18 @@ export class CobolService {
   private readonly logger = new Logger(CobolService.name);
   private readonly coreUrl = process.env.CORE_URL || 'http://core:3002';
 
-  async run(program: string): Promise<string> {
-    this.logger.log(`Llamando a core para ejecutar: ${program}`);
+  // Ejecuta un programa COBOL en el core, opcionalmente enviando un mensaje
+  async run(program: string, msg?: string): Promise<string> {
+    const url = msg
+      ? `${this.coreUrl}/run/${program}?msg=${encodeURIComponent(msg)}`
+      : `${this.coreUrl}/run/${program}`;
+
+    this.logger.log(`Llamando a core: ${url}`);
 
     try {
-      const res = await fetch(`${this.coreUrl}/run/${program}`);
+      const res = await fetch(url);
 
+      // Validación de respuesta HTTP
       if (!res.ok) {
         this.logger.error(`Error desde core: ${res.status}`);
         throw new Error(`Core error: ${res.status}`);
@@ -22,6 +28,7 @@ export class CobolService {
       return output;
 
     } catch (error) {
+      // Manejo de errores de comunicación
       this.logger.error(
         `Error de comunicación con core (${program})`,
         error instanceof Error ? error.stack : String(error),
@@ -30,6 +37,7 @@ export class CobolService {
     }
   }
 
+  // Obtiene la lista de programas disponibles desde el core
   async getPrograms(): Promise<string[]> {
     this.logger.log('Solicitando lista de programas al core');
 

@@ -1,5 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { AppService } from './app.service';
+import { Query } from '@nestjs/common';
 
 @Controller()
 export class AppController {
@@ -8,8 +9,11 @@ export class AppController {
 
   // Endpoint dinámico
   @Get('cobol/:program')
-  runCobol(@Param('program') program: string): Promise<string> {
-    return this.appService.runCobol(program);
+  runCobol(
+    @Param('program') program: string,
+    @Query('msg') msg?: string,
+  ): Promise<string> {
+    return this.appService.runCobol(program, msg);
   }
 
   // Endpoint de prueba opcional (retrocompatibilidad)

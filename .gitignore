@@ -31,3 +31,6 @@ logs
 !.env.example
 docker-compose.override.yml
 coverage
+.vscode
+.vscode/
+.vscode/*

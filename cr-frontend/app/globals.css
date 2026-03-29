@@ -13,9 +13,9 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  input[readonly] {
+    background-color: #333;
+    color: #fff;
   }
 }
 
