@@ -61,6 +61,11 @@ clean:
 	@echo "🧹 Eliminando contenedores, redes y volúmenes..."
 	$(DC) -f $(COMPOSE_FILE) down -v --remove-orphans
 
+reset-db:
+	@echo "🗑️ Eliminando base de datos de usuarios..."
+	rm -f cr-auth-db/data/auth.db
+	@echo "Listo. Ejecuta 'make up' para recrear el servicio."
+
 prune:
 	@echo "Limpieza profunda (docker system prune)..."
 	docker system prune -af

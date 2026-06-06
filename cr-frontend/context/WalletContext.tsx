@@ -1,6 +1,20 @@
 "use client";
-import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from "react";
+
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
 import { useAuth } from "./AuthContext";
+import {
+  clearLegacyWalletStorage,
+  createInitialWalletData,
+  loadWalletData,
+  saveWalletData,
+} from "@/lib/wallet-storage";
 
 export interface Transaction {
   id: string;
@@ -35,6 +49,8 @@ export const useWallet = () => {
   return context;
 };
 
+const MOCK_DELAY_MS = 800;
+
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [account, setAccount] = useState<Account | null>(null);
@@ -43,47 +59,59 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   const [walletLoading, setWalletLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const applyWalletData = useCallback(
+    (data: { account: Account; balance: number; transactions: Transaction[] }) => {
+      setAccount(data.account);
+      setBalance(data.balance);
+      setTransactions(data.transactions);
+    },
+    []
+  );
+
+  const persistWallet = useCallback(
+    (
+      walletId: string,
+      nextAccount: Account,
+      nextBalance: number,
+      nextTransactions: Transaction[]
+    ) => {
+      saveWalletData(walletId, {
+        account: nextAccount,
+        balance: nextBalance,
+        transactions: nextTransactions,
+      });
+    },
+    []
+  );
+
   const loadWallet = useCallback(async () => {
-    if (!user) return;
+    if (!user?.wallet_id) return;
+    const walletId = user.wallet_id;
+
     setWalletLoading(true);
     setError(null);
     try {
-      // Mock data artificial delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      const sessionData = localStorage.getItem("mock_wallet_data");
-      if (sessionData) {
-        const data = JSON.parse(sessionData);
-        setAccount(data.account);
-        setBalance(data.balance);
-        setTransactions(data.transactions);
+      clearLegacyWalletStorage();
+      await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
+
+      const stored = loadWalletData(walletId);
+      if (stored) {
+        applyWalletData(stored);
       } else {
-        const initialAccount = {
-          id: "acc_1",
-          accountNumber: "CC-90210",
-          balance: 1500.50
-        };
-        const initialTx = [
-          { id: "tx_1", date: new Date().toISOString(), amount: 1500.50, type: "DEPOSIT", description: "Bono de bienvenida" }
-        ];
-        setAccount(initialAccount);
-        setBalance(1500.50);
-        setTransactions(initialTx);
-        localStorage.setItem("mock_wallet_data", JSON.stringify({
-          account: initialAccount,
-          balance: 1500.50,
-          transactions: initialTx
-        }));
+        const initial = createInitialWalletData(walletId);
+        applyWalletData(initial);
+        saveWalletData(walletId, initial);
       }
-    } catch (err: any) {
-      setError(err.message || "Error al cargar la billetera");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Error al cargar la billetera";
+      setError(message);
     } finally {
       setWalletLoading(false);
     }
-  }, [user]);
+  }, [user, applyWalletData]);
 
   useEffect(() => {
-    if (user) {
+    if (user?.wallet_id) {
       loadWallet();
     } else {
       setAccount(null);
@@ -93,65 +121,46 @@ export const WalletProvider = ({ children }: { children: ReactNode }) => {
   }, [user, loadWallet]);
 
   const deposit = async (amount: number, description = "") => {
+    if (!account || !user?.wallet_id) return;
+
     await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    // Generar nueva transaccion y recargar
-    loadWallet().then(() => {
-      const newTx = {
-        id: `tx_${Date.now()}`,
-        date: new Date().toISOString(),
-        amount,
-        type: "DEPOSIT",
-        description: description || "Depósito local"
-      };
-      
-      setTransactions(prev => {
-        const newTransactions = [newTx, ...prev];
-        const newBalance = balance + amount;
-        
-        setBalance(newBalance);
-        
-        if (account) {
-          localStorage.setItem("mock_wallet_data", JSON.stringify({
-            account,
-            balance: newBalance,
-            transactions: newTransactions
-          }));
-        }
-        
-        return newTransactions;
-      });
-    });
+
+    const newTx: Transaction = {
+      id: `tx_${Date.now()}`,
+      date: new Date().toISOString(),
+      amount,
+      type: "DEPOSIT",
+      description: description || "Depósito local",
+    };
+
+    const newTransactions = [newTx, ...transactions];
+    const newBalance = balance + amount;
+
+    setTransactions(newTransactions);
+    setBalance(newBalance);
+    persistWallet(user.wallet_id, account, newBalance, newTransactions);
   };
 
   const addTransaction = async (destinationAccount: string, amount: number) => {
-    if (!account) throw new Error("Wallet no inicializada");
+    if (!account || !user?.wallet_id) throw new Error("Wallet no inicializada");
     if (amount > balance) throw new Error("Fondos insuficientes");
-    
+
     await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    const newTx = {
+
+    const newTx: Transaction = {
       id: `tx_${Date.now()}`,
       date: new Date().toISOString(),
       amount: -amount,
       type: "TRANSFER",
-      description: `Giro a ${destinationAccount}`
+      description: `Giro a ${destinationAccount}`,
     };
-    
-    setTransactions(prev => {
-      const newTransactions = [newTx, ...prev];
-      const newBalance = balance - amount;
-      
-      setBalance(newBalance);
-      
-      localStorage.setItem("mock_wallet_data", JSON.stringify({
-        account,
-        balance: newBalance,
-        transactions: newTransactions
-      }));
-      
-      return newTransactions;
-    });
+
+    const newTransactions = [newTx, ...transactions];
+    const newBalance = balance - amount;
+
+    setTransactions(newTransactions);
+    setBalance(newBalance);
+    persistWallet(user.wallet_id, account, newBalance, newTransactions);
   };
 
   return (

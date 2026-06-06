@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Body, Post } from '@nestjs/common';
 import { AppService } from './app.service';
 import { Query } from '@nestjs/common';
 
@@ -34,5 +34,13 @@ export class AppController {
       timestamp: new Date().toISOString(),
     };
   }
+
+  @Post('auth/login')
+login(@Body() body: any) {
+  return this.appService.login(body.email, body.password);
 }
 
+@Post('auth/register')
+register(@Body() body: any) {
+  return this.appService.register(body.email, body.password, body.name);
+}}

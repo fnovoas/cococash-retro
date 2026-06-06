@@ -7,11 +7,19 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
 export function ModeSwitcher() {
-  const { setTheme, resolvedTheme } = useTheme();
+  const { setTheme, theme } = useTheme();
 
-  const toggleTheme = React.useCallback(() => {
-    setTheme(resolvedTheme === "dark" ? "light" : "dark");
-  }, [resolvedTheme, setTheme]);
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
   return (
     <Button

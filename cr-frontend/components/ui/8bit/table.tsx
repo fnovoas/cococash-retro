@@ -48,7 +48,8 @@ function Table({
   return (
     <div
       className={cn(
-        "relative flex justify-center w-fit",
+        "relative",
+        variant === "borderless" ? "w-full" : "flex justify-center w-fit",
         tableVariants({ font, variant })
       )}
     >

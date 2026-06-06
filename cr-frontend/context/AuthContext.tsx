@@ -1,10 +1,26 @@
 "use client";
-import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode,
+} from "react";
+import { API_BASE } from "@/lib/api";
+import {
+  clearToken,
+  getStoredToken,
+  parseToken,
+  saveToken,
+} from "@/lib/auth-token";
+import { AuthError, parseAuthErrorResponse } from "@/lib/auth-errors";
 
 export interface User {
   email: string;
   name: string;
   sub: string;
+  wallet_id: string;
 }
 
 interface AuthContextType {
@@ -12,7 +28,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
-  register: (email: string, password?: string, name?: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,47 +39,54 @@ export const useAuth = () => {
   return context;
 };
 
+async function authenticate(
+  endpoint: string,
+  body: Record<string, string>
+): Promise<User> {
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw parseAuthErrorResponse(res.status, data);
+  }
+
+  const { token } = data as { token: string };
+  return saveToken(token);
+}
+
+export { AuthError };
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for mock JWT
-    const token = localStorage.getItem("cococash_token");
+    const token = getStoredToken();
     if (token) {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({
-          email: payload.email,
-          name: payload.name,
-          sub: payload.sub
-        });
-      } catch (e) {
-        localStorage.removeItem("cococash_token");
+        setUser(parseToken(token));
+      } catch {
+        clearToken();
       }
     }
     setLoading(false);
   }, []);
 
-  const login = async (email: string) => {
-    // Mock login -> generate fake JWT
-    const payload = {
-      sub: "12345",
-      email,
-      name: email.split("@")[0],
-    };
-    const fakeToken = `header.${btoa(JSON.stringify(payload))}.signature`;
-    localStorage.setItem("cococash_token", fakeToken);
-    setUser(payload);
+  const login = async (email: string, password?: string) => {
+    setUser(await authenticate("/auth/login", { email, password: password ?? "" }));
   };
 
-  const register = async (email: string, password?: string, name?: string) => {
-    // Mock register
-    return;
+  const register = async (email: string, password: string, name: string) => {
+    setUser(await authenticate("/auth/register", { email, password, name }));
   };
 
   const logout = () => {
-    localStorage.removeItem("cococash_token");
+    clearToken();
     setUser(null);
   };
 

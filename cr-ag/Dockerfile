@@ -11,7 +11,7 @@ WORKDIR /app
 # Copiar dependencias
 COPY package*.json ./
 
-RUN npm install
+RUN npm install --ignore-scripts
 
 # Copiar código fuente
 COPY . .

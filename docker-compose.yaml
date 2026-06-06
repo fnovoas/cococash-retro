@@ -21,6 +21,8 @@ services:
     depends_on:
       core:
         condition: service_healthy
+      auth-ms:
+        condition: service_healthy
     ports:
       - "3001:3001"
     environment:
@@ -42,6 +44,12 @@ services:
         condition: service_healthy
     ports:
       - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASEURL=http://localhost:3001
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./cr-frontend:/app
+      - /app/node_modules
     networks:
       - cr-net
     healthcheck:
@@ -50,6 +58,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  auth-ms:
+    build: ./cr-auth-ms
+    container_name: cr-auth-ms
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_PATH=/data/auth.db
+      - SCHEMA_PATH=/db/schema.sql
+    volumes:
+      - ./cr-auth-db/data:/data
+      - ./cr-auth-db/schema.sql:/db/schema.sql:ro
+    networks:
+      - cr-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   cr-net:
